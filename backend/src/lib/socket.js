@@ -1,38 +1,38 @@
-import {Server} from 'socket.io';
-import http from 'http';
-import express from 'express';
-const app= express();
-const server = http.createServer(app);
+// lib/socket.js
+import { Server } from 'socket.io';
 
-const io=new Server(server, {
-    cors:{
-        origin: ["http://localhost:5173"],
+let io;
+const userSocketMap = {};
 
-    }
-});
+export function initSocket(server) {
+  io = new Server(server, {
+    cors: {
+      origin: ["http://localhost:5173"],
+      credentials: true,
+    },
+  });
 
-export function getReceiverSocketId(userId) {
-    // This function retrieves the socket ID for a given user ID
-    return userSocketMap[userId]; // Return the socket ID or null if not found
-}
+  io.on("connection", (socket) => {
+    console.log("New client connected:", socket.id);
+    const userId = socket.handshake.query.userId;
 
-//used to store user socket ids
-const userSocketMap={}
-io.on("connection",(socket)=>{
-    console.log("New client connected: " + socket.id);
-    const userId = socket.handshake.query.userId; // Assuming userId is sent as a query parameter
     if (userId) {
-        userSocketMap[userId] = socket.id; // Store the socket ID with the user ID
-        console.log(`User ${userId} connected with socket ID: ${socket.id}`);
+      userSocketMap[userId] = socket.id;
+      console.log(`User ${userId} connected with socket ID: ${socket.id}`);
     }
-    io.emit("getOnlineUsers",Object.keys(userSocketMap)); // Emit the list of online users
+
+    io.emit("getOnlineUsers", Object.keys(userSocketMap));
 
     socket.on("disconnect", () => {
-        console.log("Client disconnected: " + socket.id);
-        delete userSocketMap[userId]; // Remove the user from the map on disconnect
-        io.emit("getOnlineUsers", Object.keys(userSocketMap)); // Emit the updated list of online users
+      console.log("Client disconnected:", socket.id);
+      delete userSocketMap[userId];
+      io.emit("getOnlineUsers", Object.keys(userSocketMap));
     });
+  });
+}
 
-    // Add more event listeners as needed
-})
-export {io,server,app};
+export function getReceiverSocketId(userId) {
+  return userSocketMap[userId];
+}
+
+export { io };
